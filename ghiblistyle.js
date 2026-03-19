@@ -1,145 +1,53 @@
 #!/usr/bin/env node
-import { readFileSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
+/**
+ * Ghibli Style Image Generator
+ * Generates studio ghibli ai art generator using the Neta talesofai API.
+ */
+import { readFileSync } from 'fs';
+import { homedir } from 'os';
 
-// --- Config ---
-const DEFAULT_PROMPT =
-  "Studio Ghibli style illustration, soft watercolor painting, dreamy Miyazaki aesthetic, lush natural backgrounds, warm golden light, hand-painted textures, whimsical atmosphere, detailed foliage, cinematic composition";
-
-const SIZES = {
-  square:    { width: 1024, height: 1024 },
-  portrait:  { width: 832,  height: 1216 },
-  landscape: { width: 1216, height: 832  },
-  tall:      { width: 704,  height: 1408 },
-};
-
-// --- CLI parsing ---
-const args = process.argv.slice(2);
-const flags = {};
-const positional = [];
-
-for (let i = 0; i < args.length; i++) {
-  if (args[i].startsWith("--")) {
-    const key = args[i].slice(2);
-    flags[key] = args[i + 1] ?? true;
-    i++;
-  } else {
-    positional.push(args[i]);
+const args    = process.argv.slice(2);
+const getFlag = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i+1] : null; };
+const PROMPT  = args.find(a => !a.startsWith('--')) || 'Studio Ghibli style illustration, soft watercolor painting, dreamy Miyazaki aesthetic, lush natural backgrounds, warm golden light, hand-painted textures, whimsical atmosphere, detailed foliage, cinematic composition';
+const SIZE    = getFlag('--size')  || 'landscape';
+const TOKEN   = getFlag('--token') || process.env.NETA_TOKEN || (() => {
+  for (const p of [`${homedir()}/.openclaw/workspace/.env`, `${homedir()}/developer/clawhouse/.env`]) {
+    try { const m = readFileSync(p, 'utf8').match(/NETA_TOKEN=(.+)/); if (m) return m[1].trim(); } catch {}
   }
-}
-
-const prompt   = positional.join(" ") || DEFAULT_PROMPT;
-const sizeName = flags.size  || "landscape";
-const style    = flags.style || "anime";
-
-if (!SIZES[sizeName]) {
-  console.error(`Unknown size "${sizeName}". Valid: ${Object.keys(SIZES).join(", ")}`);
-  process.exit(1);
-}
-const { width, height } = SIZES[sizeName];
-
-// --- Token resolution ---
-function readToken() {
-  if (flags.token) return flags.token;
-  if (process.env.NETA_TOKEN) return process.env.NETA_TOKEN;
-
-  const envPath = join(homedir(), ".openclaw", "workspace", ".env");
-  try {
-    const content = readFileSync(envPath, "utf8");
-    const match = content.match(/NETA_TOKEN=(.+)/);
-    if (match) return match[1].trim();
-  } catch {
-    // file not found or unreadable
-  }
-
-  console.error(
-    "No NETA_TOKEN found. Set the env var, pass --token <TOKEN>, " +
-    "or add NETA_TOKEN=... to ~/.openclaw/workspace/.env"
-  );
-  process.exit(1);
-}
-
-const TOKEN = readToken();
-
-// --- API calls ---
-async function makeImage() {
-  const res = await fetch("https://api.talesofai.cn/v3/make_image", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-token": TOKEN,
-    },
-    body: JSON.stringify({
-      prompt,
-      extra_param: { width, height },
-      style_args: [{ style_name: style }],
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    console.error(`make_image failed (${res.status}): ${text}`);
-    process.exit(1);
-  }
-
-  const data = await res.json();
-  const taskUuid = data.task_uuid ?? data.uuid ?? data.id;
-  if (!taskUuid) {
-    console.error("No task_uuid in response:", JSON.stringify(data));
-    process.exit(1);
-  }
-  return taskUuid;
-}
-
-async function pollTask(taskUuid) {
-  const maxAttempts = 60;
-  const intervalMs  = 3000;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await new Promise((r) => setTimeout(r, intervalMs));
-
-    const res = await fetch(
-      `https://api.talesofai.cn/v1/artifact/task/${taskUuid}`,
-      { headers: { "x-token": TOKEN } }
-    );
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error(`Poll failed (${res.status}): ${text}`);
-      process.exit(1);
-    }
-
-    const data = await res.json();
-    const status = (data.status ?? "").toUpperCase();
-
-    if (status === "DONE") {
-      const url =
-        data.result_image_url ?? data.image_url ?? data.url;
-      if (!url) {
-        console.error("Task DONE but no image URL found:", JSON.stringify(data));
-        process.exit(1);
-      }
-      console.log(url);
-      process.exit(0);
-    }
-
-    if (status === "FAILED") {
-      console.error("Task FAILED:", data.error ?? data.message ?? JSON.stringify(data));
-      process.exit(1);
-    }
-
-    // still pending — keep polling
-    process.stderr.write(`[${attempt}/${maxAttempts}] status=${status} ...\r`);
-  }
-
-  console.error("Timed out waiting for task to complete.");
-  process.exit(1);
-}
-
-// --- Main ---
-(async () => {
-  const taskUuid = await makeImage();
-  process.stderr.write(`Task created: ${taskUuid}\n`);
-  await pollTask(taskUuid);
+  return null;
 })();
+
+if (!TOKEN) { console.error('NETA_TOKEN not set'); process.exit(1); }
+
+const SIZES = { square:{w:1024,h:1024}, portrait:{w:832,h:1216}, landscape:{w:1216,h:832}, tall:{w:704,h:1408} };
+const { w: width, h: height } = SIZES[SIZE] || SIZES.landscape;
+const HEADERS = { 'x-token': TOKEN, 'x-platform': 'nieta-app/web', 'content-type': 'application/json' };
+
+const res = await fetch('https://api.talesofai.cn/v3/make_image', {
+  method: 'POST', headers: HEADERS,
+  body: JSON.stringify({
+    storyId: 'DO_NOT_USE', jobType: 'universal',
+    rawPrompt: [{ type: 'freetext', value: PROMPT, weight: 1 }],
+    width, height,
+    meta: { entrance: 'PICTURE,VERSE' },
+  }),
+});
+if (!res.ok) { console.error(`make_image failed (${res.status}):`, await res.text()); process.exit(1); }
+const taskData = await res.json();
+const task_uuid = typeof taskData === 'string' ? taskData : taskData?.task_uuid;
+if (!task_uuid) { console.error('No task_uuid returned:', JSON.stringify(taskData)); process.exit(1); }
+
+process.stderr.write(`Task: ${task_uuid}\n`);
+for (let i = 0; i < 90; i++) {
+  await new Promise(r => setTimeout(r, 2000));
+  const poll = await fetch(`https://api.talesofai.cn/v1/artifact/task/${task_uuid}`, { headers: HEADERS });
+  const data = await poll.json();
+  const status = data.task_status || '';
+  if (status !== 'PENDING' && status !== 'MODERATION' && status !== '') {
+    const url = data.artifacts?.[0]?.url ?? data.result_image_url ?? data.image_url;
+    if (url) { console.log(url); process.exit(0); }
+    console.error('Done but no URL:', JSON.stringify(data)); process.exit(1);
+  }
+  process.stderr.write(`[${i+1}] ${status}...\r`);
+}
+console.error('Timed out'); process.exit(1);
