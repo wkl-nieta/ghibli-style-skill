@@ -1,6 +1,6 @@
 # Ghibli Style Image Generator
 
-Generate breathtaking **Studio Ghibli-style illustrations** from a text prompt using AI. Powered by the Neta talesofai API, this skill produces dreamy, hand-painted anime artwork with the warmth and whimsy of a Miyazaki film — delivered as a direct image URL in seconds.
+Generate beautiful **studio ghibli ai art generator** images using AI — powered by the Neta talesofai API. Get a direct image URL back in seconds.
 
 ---
 
@@ -21,23 +21,20 @@ clawhub install ghibli-style-skill
 ## Usage
 
 ```bash
-# Use the built-in default Ghibli prompt
+# Use the default Ghibli prompt
 node ghiblistyle.js
 
-# Describe your own scene
-node ghiblistyle.js "A young girl walking through a misty bamboo forest at dawn"
+# Describe your scene
+node ghiblistyle.js "a girl standing on a hilltop watching the sunset over a misty valley"
 
-# Choose a size
-node ghiblistyle.js "Seaside village with red torii gates" --size portrait
+# Specify size
+node ghiblistyle.js "forest path with glowing spirits" --size portrait
 
-# Choose a style
-node ghiblistyle.js "Castle in the clouds" --size landscape --style cinematic
-
-# Pass a token inline
-node ghiblistyle.js "Spirit river crossing" --token sk-xxxxxxxx
+# Use a reference image (picture_uuid)
+node ghiblistyle.js "same scene but at night" --ref <picture_uuid>
 ```
 
-The script prints a single image URL to stdout on success — easy to pipe or capture.
+The script prints a single image URL to stdout on success.
 
 ---
 
@@ -46,13 +43,14 @@ The script prints a single image URL to stdout on success — easy to pipe or ca
 | Flag | Values | Default | Description |
 |------|--------|---------|-------------|
 | `--size` | `square`, `portrait`, `landscape`, `tall` | `landscape` | Output image dimensions |
-| `--style` | `anime`, `cinematic`, `realistic` | `anime` | Visual style preset |
-| `--token` | any string | — | Override the API token for this run |
+| `--style` | `anime`, `cinematic`, `realistic` | `anime` | Visual style hint |
+| `--token` | string | — | Override API token |
+| `--ref` | picture_uuid | — | Inherit params from an existing image |
 
-### Size dimensions
+### Size reference
 
-| Name | Width × Height |
-|------|---------------|
+| Name | Dimensions |
+|------|-----------|
 | `square` | 1024 × 1024 |
 | `portrait` | 832 × 1216 |
 | `landscape` | 1216 × 832 |
@@ -62,43 +60,25 @@ The script prints a single image URL to stdout on success — easy to pipe or ca
 
 ## Token setup
 
-You need a **Neta API token** (`NETA_TOKEN`). The script looks for it in this order:
+The script resolves `NETA_TOKEN` in this order:
 
-1. `--token <TOKEN>` CLI flag
+1. `--token <value>` CLI flag
 2. `NETA_TOKEN` environment variable
-3. `~/.openclaw/workspace/.env` file (line matching `NETA_TOKEN=...`)
+3. `~/.openclaw/workspace/.env` — line matching `NETA_TOKEN=...`
+4. `~/developer/clawhouse/.env` — line matching `NETA_TOKEN=...`
 
-### Option A — environment variable
-```bash
-export NETA_TOKEN=your_token_here
-node ghiblistyle.js "Totoro in a rainy field"
+**Recommended:** add your token to `~/.openclaw/workspace/.env`:
 ```
-
-### Option B — .env file
-```bash
-mkdir -p ~/.openclaw/workspace
-echo "NETA_TOKEN=your_token_here" >> ~/.openclaw/workspace/.env
+NETA_TOKEN=your_token_here
 ```
 
 ---
 
 ## Default prompt
 
-When called with no positional argument, the skill uses:
+When no prompt is provided, the script uses:
 
 > Studio Ghibli style illustration, soft watercolor painting, dreamy Miyazaki aesthetic, lush natural backgrounds, warm golden light, hand-painted textures, whimsical atmosphere, detailed foliage, cinematic composition
-
----
-
-## Example output
-
-```
-Task created: a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-[4/60] status=PENDING ...
-https://cdn.talesofai.cn/results/a1b2c3d4.png
-```
-
-The final line is the image URL — ready to open or embed.
 
 ---
 

@@ -1,53 +1,140 @@
 #!/usr/bin/env node
-/**
- * Ghibli Style Image Generator
- * Generates studio ghibli ai art generator using the Neta talesofai API.
- */
-import { readFileSync } from 'fs';
-import { homedir } from 'os';
+import { readFileSync } from "fs";
+import { homedir } from "os";
+import { join } from "path";
 
-const args    = process.argv.slice(2);
-const getFlag = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i+1] : null; };
-const PROMPT  = args.find(a => !a.startsWith('--')) || 'Studio Ghibli style illustration, soft watercolor painting, dreamy Miyazaki aesthetic, lush natural backgrounds, warm golden light, hand-painted textures, whimsical atmosphere, detailed foliage, cinematic composition';
-const SIZE    = getFlag('--size')  || 'landscape';
-const TOKEN   = getFlag('--token') || process.env.NETA_TOKEN || (() => {
-  for (const p of [`${homedir()}/.openclaw/workspace/.env`, `${homedir()}/developer/clawhouse/.env`]) {
-    try { const m = readFileSync(p, 'utf8').match(/NETA_TOKEN=(.+)/); if (m) return m[1].trim(); } catch {}
-  }
-  return null;
-})();
+// --- Argument parsing ---
+const args = process.argv.slice(2);
+let prompt = null;
+let size = "landscape";
+let token = null;
+let ref = null;
 
-if (!TOKEN) { console.error('NETA_TOKEN not set'); process.exit(1); }
-
-const SIZES = { square:{w:1024,h:1024}, portrait:{w:832,h:1216}, landscape:{w:1216,h:832}, tall:{w:704,h:1408} };
-const { w: width, h: height } = SIZES[SIZE] || SIZES.landscape;
-const HEADERS = { 'x-token': TOKEN, 'x-platform': 'nieta-app/web', 'content-type': 'application/json' };
-
-const res = await fetch('https://api.talesofai.cn/v3/make_image', {
-  method: 'POST', headers: HEADERS,
-  body: JSON.stringify({
-    storyId: 'DO_NOT_USE', jobType: 'universal',
-    rawPrompt: [{ type: 'freetext', value: PROMPT, weight: 1 }],
-    width, height,
-    meta: { entrance: 'PICTURE,VERSE' },
-  }),
-});
-if (!res.ok) { console.error(`make_image failed (${res.status}):`, await res.text()); process.exit(1); }
-const taskData = await res.json();
-const task_uuid = typeof taskData === 'string' ? taskData : taskData?.task_uuid;
-if (!task_uuid) { console.error('No task_uuid returned:', JSON.stringify(taskData)); process.exit(1); }
-
-process.stderr.write(`Task: ${task_uuid}\n`);
-for (let i = 0; i < 90; i++) {
-  await new Promise(r => setTimeout(r, 2000));
-  const poll = await fetch(`https://api.talesofai.cn/v1/artifact/task/${task_uuid}`, { headers: HEADERS });
-  const data = await poll.json();
-  const status = data.task_status || '';
-  if (status !== 'PENDING' && status !== 'MODERATION' && status !== '') {
-    const url = data.artifacts?.[0]?.url ?? data.result_image_url ?? data.image_url;
-    if (url) { console.log(url); process.exit(0); }
-    console.error('Done but no URL:', JSON.stringify(data)); process.exit(1);
-  }
-  process.stderr.write(`[${i+1}] ${status}...\r`);
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === "--size" && args[i + 1]) { size = args[++i]; }
+  else if (args[i] === "--token" && args[i + 1]) { token = args[++i]; }
+  else if (args[i] === "--ref" && args[i + 1]) { ref = args[++i]; }
+  else if (!args[i].startsWith("--") && prompt === null) { prompt = args[i]; }
 }
-console.error('Timed out'); process.exit(1);
+
+if (!prompt) {
+  prompt = "Studio Ghibli style illustration, soft watercolor painting, dreamy Miyazaki aesthetic, lush natural backgrounds, warm golden light, hand-painted textures, whimsical atmosphere, detailed foliage, cinematic composition";
+}
+
+// --- Token resolution ---
+function readEnvFile(filePath) {
+  try {
+    const resolved = filePath.replace(/^~/, homedir());
+    const content = readFileSync(resolved, "utf8");
+    const match = content.match(/NETA_TOKEN=(.+)/);
+    return match ? match[1].trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+if (!token) token = process.env.NETA_TOKEN || null;
+if (!token) token = readEnvFile("~/.openclaw/workspace/.env");
+if (!token) token = readEnvFile("~/developer/clawhouse/.env");
+
+if (!token) {
+  console.error("Error: NETA_TOKEN not found. Provide via --token, NETA_TOKEN env var, ~/.openclaw/workspace/.env, or ~/developer/clawhouse/.env");
+  process.exit(1);
+}
+
+// --- Size map ---
+const sizeMap = {
+  square:    { width: 1024, height: 1024 },
+  portrait:  { width: 832,  height: 1216 },
+  landscape: { width: 1216, height: 832  },
+  tall:      { width: 704,  height: 1408 },
+};
+
+const { width, height } = sizeMap[size] ?? sizeMap.landscape;
+
+// --- Headers ---
+const HEADERS = {
+  "x-token": token,
+  "x-platform": "nieta-app/web",
+  "content-type": "application/json",
+};
+
+// --- Build request body ---
+const body = {
+  storyId: "DO_NOT_USE",
+  jobType: "universal",
+  rawPrompt: [{ type: "freetext", value: prompt, weight: 1 }],
+  width,
+  height,
+  meta: { entrance: "PICTURE,VERSE" },
+  context_model_series: "8_image_edit",
+};
+
+if (ref) {
+  body.inherit_params = { collection_uuid: ref, picture_uuid: ref };
+}
+
+// --- Submit job ---
+const submitRes = await fetch("https://api.talesofai.cn/v3/make_image", {
+  method: "POST",
+  headers: HEADERS,
+  body: JSON.stringify(body),
+});
+
+if (!submitRes.ok) {
+  console.error(`Error submitting job: ${submitRes.status} ${submitRes.statusText}`);
+  process.exit(1);
+}
+
+const submitData = await submitRes.json();
+const task_uuid = typeof submitData === "string" ? submitData : submitData.task_uuid;
+
+if (!task_uuid) {
+  console.error("Error: no task_uuid in response", submitData);
+  process.exit(1);
+}
+
+// --- Poll for result ---
+const MAX_ATTEMPTS = 90;
+const POLL_INTERVAL_MS = 2000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  await sleep(POLL_INTERVAL_MS);
+
+  const pollRes = await fetch(`https://api.talesofai.cn/v1/artifact/task/${task_uuid}`, {
+    headers: HEADERS,
+  });
+
+  if (!pollRes.ok) {
+    console.error(`Poll error: ${pollRes.status} ${pollRes.statusText}`);
+    process.exit(1);
+  }
+
+  const pollData = await pollRes.json();
+  const status = pollData.task_status;
+
+  if (status === "PENDING" || status === "MODERATION") {
+    continue;
+  }
+
+  // Done — extract image URL
+  const url =
+    pollData.artifacts?.[0]?.url ??
+    pollData.result_image_url ??
+    null;
+
+  if (!url) {
+    console.error("Error: task finished but no image URL found", pollData);
+    process.exit(1);
+  }
+
+  console.log(url);
+  process.exit(0);
+}
+
+console.error("Error: timed out waiting for image generation");
+process.exit(1);
