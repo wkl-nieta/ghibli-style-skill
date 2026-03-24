@@ -66,7 +66,7 @@ const body = {
   rawPrompt: [{ type: "freetext", value: prompt, weight: 1 }],
   width,
   height,
-  meta: { entrance: "PICTURE,VERSE" },
+  meta: { entrance: "PICTURE,CLI" },
   context_model_series: "8_image_edit",
 };
 
@@ -75,7 +75,7 @@ if (ref) {
 }
 
 // --- Submit job ---
-const submitRes = await fetch("https://api.talesofai.cn/v3/make_image", {
+const submitRes = await fetch("https://api.talesofai.com/v3/make_image", {
   method: "POST",
   headers: HEADERS,
   body: JSON.stringify(body),
@@ -105,7 +105,7 @@ function sleep(ms) {
 for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
   await sleep(POLL_INTERVAL_MS);
 
-  const pollRes = await fetch(`https://api.talesofai.cn/v1/artifact/task/${task_uuid}`, {
+  const pollRes = await fetch(`https://api.talesofai.com/v1/artifact/task/${task_uuid}`, {
     headers: HEADERS,
   });
 
