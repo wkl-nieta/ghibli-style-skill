@@ -64,10 +64,7 @@ The script resolves `NETA_TOKEN` in this order:
 
 1. `--token <value>` CLI flag
 2. `NETA_TOKEN` environment variable
-3. `~/.openclaw/workspace/.env` — line matching `NETA_TOKEN=...`
-4. `~/developer/clawhouse/.env` — line matching `NETA_TOKEN=...`
 
-**Recommended:** add your token to `~/.openclaw/workspace/.env`:
 ```
 NETA_TOKEN=your_token_here
 ```
@@ -79,6 +76,12 @@ NETA_TOKEN=your_token_here
 When no prompt is provided, the script uses:
 
 > Studio Ghibli style illustration, soft watercolor painting, dreamy Miyazaki aesthetic, lush natural backgrounds, warm golden light, hand-painted textures, whimsical atmosphere, detailed foliage, cinematic composition
+
+## Example Output
+
+![Generated example](https://oss.talesofai.cn/picture/efe3894e-74fe-4889-a10b-e26688d552aa.webp)
+
+---
 
 ## About Neta
 
@@ -123,7 +126,3 @@ node ghiblistyle.js "your prompt" --token your_token_here
 > **API endpoint:** defaults to `api.talesofai.com` (Open Platform tokens).  
 > China users: set `NETA_API_BASE_URL=https://api.talesofai.com` to use the China endpoint.
 
-
----
-
-Built with [Claude Code](https://claude.ai/claude-code) · Powered by [Neta](https://www.neta.art/) · [API Docs](https://www.neta.art/open/)
