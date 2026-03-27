@@ -1,6 +1,6 @@
 ---
 name: ghibli-style-skill
-description: Generate ghibli style images using the Neta AI API. Returns a direct image URL.
+description: Generate studio ghibli ai art generator images with AI — powered by Neta talesofai API.
 tools: Bash
 ---
 
@@ -18,18 +18,7 @@ node ghiblistyle.js "your description here"
 
 ## Options
 - `--size` — `portrait`, `landscape`, `square`, `tall` (default: `landscape`)
-
-
-## Token
-
-Requires a Neta API token via the `--token` flag.
-- Global: <https://www.neta.art/open/>
-- China:  <https://app.nieta.art/security>
-
-```bash
-export NETA_TOKEN=your_token_here
-node <script> "your prompt" --token "$NETA_TOKEN"
-```
+- `--style` — `anime`, `cinematic`, `realistic` (default: `anime`)
 
 ## Install
 ```bash

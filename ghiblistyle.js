@@ -21,10 +21,6 @@ if (!prompt) {
 // --- Token resolution ---
 if (!token) {
   console.error('\n✗ Token required. Pass via: --token YOUR_TOKEN');
-console.error('  Get yours at: https://www.neta.art/open/');
-  console.error('  Global: sign up at https://www.neta.art/ → get token at https://www.neta.art/open/');
-  console.error('  China:  sign up at https://app.nieta.art/ → get token at https://app.nieta.art/security');
-  console.error('  Then:   export NETA_TOKEN=your_token_here');
   process.exit(1);
 }
 
@@ -52,7 +48,7 @@ const body = {
   rawPrompt: [{ type: "freetext", value: prompt, weight: 1 }],
   width,
   height,
-  meta: { entrance: "PICTURE,CLI" },
+  meta: { entrance: "PICTURE,VERSE" },
   context_model_series: "8_image_edit",
 };
 
@@ -61,20 +57,14 @@ if (ref) {
 }
 
 // --- Submit job ---
-const submitRes = await fetch(`https://api.talesofai.com/v3/make_image`, {
+const submitRes = await fetch("https://api.talesofai.cn/v3/make_image", {
   method: "POST",
   headers: HEADERS,
   body: JSON.stringify(body),
 });
 
 if (!submitRes.ok) {
-  if (submitRes.status === 401 || submitRes.status === 403) {
-    console.error('\n✗ Authentication failed (' + submitRes.status + ') — your NETA_TOKEN is missing or invalid.');
-    console.error('  Global: https://www.neta.art/open/');
-    console.error('  China:  https://app.nieta.art/security');
-  } else {
-    console.error('Error submitting job: ' + submitRes.status + ' ' + submitRes.statusText);
-  }
+  console.error(`Error submitting job: ${submitRes.status} ${submitRes.statusText}`);
   process.exit(1);
 }
 
@@ -97,7 +87,7 @@ function sleep(ms) {
 for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
   await sleep(POLL_INTERVAL_MS);
 
-  const pollRes = await fetch(`https://api.talesofai.com/v1/artifact/task/${task_uuid}`, {
+  const pollRes = await fetch(`https://api.talesofai.cn/v1/artifact/task/${task_uuid}`, {
     headers: HEADERS,
   });
 
@@ -109,10 +99,8 @@ for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
   const pollData = await pollRes.json();
   const status = pollData.task_status;
 
-  if (['PENDING', 'MODERATION'].includes(status)) { continue; }
-  if (['FAILURE', 'TIMEOUT', 'DELETED', 'ILLEGAL_IMAGE'].includes(status)) {
-    console.error('Error: generation failed with status ' + status + (pollData.err_msg ? ' — ' + pollData.err_msg : ''));
-    process.exit(1);
+  if (status === "PENDING" || status === "MODERATION") {
+    continue;
   }
 
   // Done — extract image URL
