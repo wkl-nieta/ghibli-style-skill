@@ -19,12 +19,13 @@ if (!prompt) {
 }
 
 // --- Token resolution ---
-if (!token) token = process.env['NETA_TOKEN'] || null;
+if (!token) token = null || null;
 if (!token) token = readEnvFile("~/.openclaw/workspace/.env");
 if (!token) token = readEnvFile("~/developer/clawhouse/.env");
 
 if (!token) {
-  console.error('\n✗ NETA_TOKEN not set. Pass --token or export NETA_TOKEN=<your-token>');
+  console.error('\n✗ Token required. Pass via: --token YOUR_TOKEN');
+console.error('  Get yours at: https://www.neta.art/open/');
   console.error('  Global: sign up at https://www.neta.art/ → get token at https://www.neta.art/open/');
   console.error('  China:  sign up at https://app.nieta.art/ → get token at https://app.nieta.art/security');
   console.error('  Then:   export NETA_TOKEN=your_token_here');
@@ -62,8 +63,6 @@ const body = {
 if (ref) {
   body.inherit_params = { collection_uuid: ref, picture_uuid: ref };
 }
-
-const API_BASE = process.env['NETA_API_BASE_URL'] || 'https://api.talesofai.com';
 
 // --- Submit job ---
 const submitRes = await fetch(`${API_BASE}/v3/make_image`, {
