@@ -1,5 +1,7 @@
 # Ghibli Style Image Generator
 
+> Powered by the **Neta AI image generation API** (`api.talesofai.com`) — the same service as [neta.art](https://www.neta.art/open/).
+
 Generate beautiful **studio ghibli ai art generator** images using AI — powered by the Neta talesofai API. Get a direct image URL back in seconds.
 
 ---
@@ -80,3 +82,7 @@ When no prompt is provided, the script uses:
 ## Example Output
 
 ![Generated example](https://oss.talesofai.cn/picture/efe3894e-74fe-4889-a10b-e26688d552aa.webp)
+
+---
+
+This skill requires a Neta API token (free trial available at https://www.neta.art/open/).
